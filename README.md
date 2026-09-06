@@ -31,4 +31,4 @@ npm run db:seed
 npm run dev
 ```
 
-The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up.
+The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up. `npm test` checks warehouse eligibility against the seed (Postgres must already be migrated and seeded).
