@@ -33,7 +33,11 @@ npm run dev
 
 The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up.
 
-`POST /orders` creates an order. After seed, electrical tape is product `3` and customer `1`:
+`npm install` prints moderate `npm audit` warnings from `drizzle-kit`'s toolchain (an old transitive `esbuild`, deprecated in favor of `tsx`). They're dev-only, not reachable at runtime, and there's no newer stable `drizzle-kit` release yet that drops them - `npm audit fix --force`'s suggested fix is actually a downgrade, not worth taking.
+
+`POST /orders` creates an order. A few examples against the seeded data (customer `1`; product IDs and warehouse layout are in `src/db/seed.ts`):
+
+Happy path - tape is stocked everywhere, so it ships from the nearest warehouse:
 
 ```sh
 curl -sS -X POST http://localhost:3000/orders \
@@ -52,5 +56,71 @@ curl -sS -X POST http://localhost:3000/orders \
   }'
 ```
 
-Use card `4000000000000002` to exercise a declined payment (402). `npm test` needs a migrated, seeded database for eligibility and create-order tests.
+Closest eligible, not closest overall - conduit, elbow, and a breaker are only all in stock together in New York, so this ships from there even though the address is Los Angeles:
+
+```sh
+curl -sS -X POST http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "customerId": 1,
+    "shippingAddress": {
+      "line1": "123 Main St",
+      "city": "Los Angeles",
+      "region": "CA",
+      "postalCode": "90012",
+      "country": "US"
+    },
+    "items": [
+      { "productId": 1, "quantity": 1 },
+      { "productId": 2, "quantity": 1 },
+      { "productId": 4, "quantity": 1 }
+    ],
+    "payment": { "cardNumber": "4242424242424242" }
+  }'
+```
+
+No warehouse can fill it (409) - each warehouse is missing at least one of these four items:
+
+```sh
+curl -sS -X POST http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "customerId": 1,
+    "shippingAddress": {
+      "line1": "123 Main St",
+      "city": "Los Angeles",
+      "region": "CA",
+      "postalCode": "90012",
+      "country": "US"
+    },
+    "items": [
+      { "productId": 5, "quantity": 1 },
+      { "productId": 7, "quantity": 1 },
+      { "productId": 2, "quantity": 1 },
+      { "productId": 4, "quantity": 1 }
+    ],
+    "payment": { "cardNumber": "4242424242424242" }
+  }'
+```
+
+Declined payment (402) - same as the happy path, using card `4000000000000002`:
+
+```sh
+curl -sS -X POST http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "customerId": 1,
+    "shippingAddress": {
+      "line1": "123 Main St",
+      "city": "Los Angeles",
+      "region": "CA",
+      "postalCode": "90012",
+      "country": "US"
+    },
+    "items": [{ "productId": 3, "quantity": 1 }],
+    "payment": { "cardNumber": "4000000000000002" }
+  }'
+```
+
+`npm test` needs a migrated, seeded database for eligibility and create-order tests.
 
