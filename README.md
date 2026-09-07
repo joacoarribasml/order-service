@@ -31,4 +31,26 @@ npm run db:seed
 npm run dev
 ```
 
-The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up. `npm test` covers eligibility (needs a migrated, seeded database) plus geocoding, closest-warehouse, and payment.
+The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up.
+
+`POST /orders` creates an order. After seed, electrical tape is product `3` and customer `1`:
+
+```sh
+curl -sS -X POST http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{
+    "customerId": 1,
+    "shippingAddress": {
+      "line1": "123 Main St",
+      "city": "Los Angeles",
+      "region": "CA",
+      "postalCode": "90012",
+      "country": "US"
+    },
+    "items": [{ "productId": 3, "quantity": 1 }],
+    "payment": { "cardNumber": "4242424242424242" }
+  }'
+```
+
+Use card `4000000000000002` to exercise a declined payment (402). `npm test` needs a migrated, seeded database for eligibility and create-order tests.
+

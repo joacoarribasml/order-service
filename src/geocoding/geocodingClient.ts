@@ -22,11 +22,18 @@ const KNOWN_CITIES: Record<string, Coordinates> = {
   atlanta: { lat: 33.749, lng: -84.388 },
 };
 
+export class UnrecognizedCityError extends Error {
+  constructor(city: string) {
+    super(`Unable to geocode address: unrecognized city "${city}"`);
+    this.name = "UnrecognizedCityError";
+  }
+}
+
 export class MockGeocodingClient implements GeocodingClient {
   async geocode(address: ShippingAddress): Promise<Coordinates> {
     const known = KNOWN_CITIES[address.city.trim().toLowerCase()];
     if (!known) {
-      throw new Error(`Unable to geocode address: unrecognized city "${address.city}"`);
+      throw new UnrecognizedCityError(address.city);
     }
     return known;
   }

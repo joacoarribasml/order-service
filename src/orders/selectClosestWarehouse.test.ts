@@ -23,7 +23,7 @@ test("returns null when nothing is eligible", async () => {
 });
 
 test("returns the only candidate without geocoding", async () => {
-  const result = await selectClosestWarehouse([nyc], address("Nowheresville"), geocoder);
+  const result = await selectClosestWarehouse([nyc], address("Springfield"), geocoder);
   assert.equal(result, nyc);
 });
 

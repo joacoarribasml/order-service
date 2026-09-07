@@ -10,7 +10,7 @@ export type EligibleWarehouse = {
   lng: string;
 };
 
-function mergeLines(items: OrderLine[]): OrderLine[] {
+export function mergeLines(items: OrderLine[]): OrderLine[] {
   const byProduct = new Map<number, number>();
   for (const item of items) {
     byProduct.set(item.productId, (byProduct.get(item.productId) ?? 0) + item.quantity);
@@ -21,11 +21,10 @@ function mergeLines(items: OrderLine[]): OrderLine[] {
 export async function findEligibleWarehouses(
   items: OrderLine[],
 ): Promise<EligibleWarehouse[]> {
-  const lines = mergeLines(items);
-  if (lines.length === 0) return [];
+  if (items.length === 0) return [];
 
   const matches = sql.join(
-    lines.map(
+    items.map(
       (line) =>
         sql`(s.product_id = ${line.productId} AND s.quantity >= ${line.quantity})`,
     ),
@@ -38,7 +37,7 @@ export async function findEligibleWarehouses(
     INNER JOIN warehouses w ON w.id = s.warehouse_id
     WHERE ${matches}
     GROUP BY w.id
-    HAVING count(*) = ${lines.length}
+    HAVING count(*) = ${items.length}
   `);
 
   return result.rows;

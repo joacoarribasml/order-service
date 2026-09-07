@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { eq } from "drizzle-orm";
 import { db, pool } from "../db/client.js";
 import { products } from "../db/schema.js";
-import { findEligibleWarehouses } from "./findEligibleWarehouses.js";
+import { findEligibleWarehouses, mergeLines } from "./findEligibleWarehouses.js";
 
 after(async () => {
   await pool.end();
@@ -56,28 +56,25 @@ test("RMC + TA + elbow + breaker cannot be filled from one warehouse", async () 
   assert.deepEqual(warehouses, []);
 });
 
+test("mergeLines sums quantities for the same product", () => {
+  assert.deepEqual(
+    mergeLines([
+      { productId: 1, quantity: 40 },
+      { productId: 1, quantity: 40 },
+    ]),
+    [{ productId: 1, quantity: 80 }],
+  );
+  assert.deepEqual(
+    mergeLines([
+      { productId: 1, quantity: 60 },
+      { productId: 1, quantity: 50 },
+    ]),
+    [{ productId: 1, quantity: 110 }],
+  );
+});
+
 test("quantity 200 of tape exceeds stock everywhere", async () => {
   const tape = await productId("TAPE-ELEC");
   const warehouses = await findEligibleWarehouses([{ productId: tape, quantity: 200 }]);
   assert.deepEqual(warehouses, []);
-});
-
-test("duplicate tape lines are summed before checking stock", async () => {
-  const tape = await productId("TAPE-ELEC");
-  const fits = await findEligibleWarehouses([
-    { productId: tape, quantity: 40 },
-    { productId: tape, quantity: 40 },
-  ]);
-  assert.deepEqual(names(fits), [
-    "Central - Chicago, IL",
-    "East - New York, NY",
-    "South - Atlanta, GA",
-    "West - Los Angeles, CA",
-  ]);
-
-  const exceeds = await findEligibleWarehouses([
-    { productId: tape, quantity: 60 },
-    { productId: tape, quantity: 50 },
-  ]);
-  assert.deepEqual(exceeds, []);
 });

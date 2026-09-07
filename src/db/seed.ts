@@ -1,8 +1,6 @@
 import "dotenv/config";
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { config } from "../config.js";
+import { db, pool } from "./client.js";
 import { customers, products, warehouseStock, warehouses } from "./schema.js";
 
 // Stock is arranged on purpose so a demo UI can show a few distinct scenarios:
@@ -16,10 +14,7 @@ import { customers, products, warehouseStock, warehouses } from "./schema.js";
 //  - Ordering a large quantity (e.g. 200) of anything fails everywhere even
 //    though every warehouse "carries" it, since none holds that much stock.
 
-async function main() {
-  const pool = new Pool({ connectionString: config.databaseUrl });
-  const db = drizzle(pool);
-
+export async function seedDatabase() {
   await db.execute(sql`
     TRUNCATE order_items, orders, warehouse_stock, products, warehouses, customers
     RESTART IDENTITY CASCADE
@@ -120,13 +115,24 @@ async function main() {
 
   await db.insert(warehouseStock).values(stock);
 
+  return {
+    warehouses: insertedWarehouses.length,
+    products: insertedProducts.length,
+    stockRows: stock.length,
+  };
+}
+
+async function main() {
+  const result = await seedDatabase();
   await pool.end();
   console.log(
-    `Seeded ${insertedWarehouses.length} warehouses, ${insertedProducts.length} products, 4 customers, ${stock.length} stock rows.`,
+    `Seeded ${result.warehouses} warehouses, ${result.products} products, 4 customers, ${result.stockRows} stock rows.`,
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv.some((arg) => arg.endsWith("seed.ts"))) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
