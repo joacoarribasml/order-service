@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -43,6 +44,7 @@ export const warehouseStock = pgTable(
   (table) => [
     primaryKey({ columns: [table.warehouseId, table.productId] }),
     check("quantity_non_negative", sql`${table.quantity} >= 0`),
+    index("warehouse_stock_product_id_idx").on(table.productId),
   ],
 );
 

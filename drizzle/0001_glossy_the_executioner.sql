@@ -1,0 +1,1 @@
+CREATE INDEX "warehouse_stock_product_id_idx" ON "warehouse_stock" USING btree ("product_id");

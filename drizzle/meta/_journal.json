@@ -8,6 +8,13 @@
       "when": 1788623206605,
       "tag": "0000_violet_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788806284862,
+      "tag": "0001_glossy_the_executioner",
+      "breakpoints": true
     }
   ]
 }
