@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "test": "tsx --test --test-concurrency=1 src/**/*.test.ts"
+    "test": "tsx --test --test-concurrency=1 src/**/*.test.ts",
+    "dev:all": "docker compose up -d --wait && npm run db:migrate && npm run db:seed && node demo/dev.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

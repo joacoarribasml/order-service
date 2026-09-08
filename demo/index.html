@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>order-service demo</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <h1>order-service <span>demo</span></h1>
+    <p>Places real orders against the running API and shows the effect on the database. Not part of the service itself.</p>
+  </header>
+
+  <main>
+    <section class="panel wide">
+      <h2>Warehouse stock</h2>
+      <div id="stock-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Place an order</h2>
+      <div class="scenarios">
+        <span>Try a scenario:</span>
+        <button type="button" class="scenario" data-scenario="happy">Happy path</button>
+        <button type="button" class="scenario" data-scenario="closest-eligible">Closest eligible (NY)</button>
+        <button type="button" class="scenario" data-scenario="cannot-fulfill">Can't fulfill (409)</button>
+        <button type="button" class="scenario" data-scenario="declined">Declined card (402)</button>
+      </div>
+      <form id="order-form">
+        <label>
+          Customer
+          <select id="customer"></select>
+        </label>
+        <label>
+          Shipping city
+          <input id="city" value="Los Angeles" />
+        </label>
+        <label>
+          Card
+          <select id="card">
+            <option value="4242424242424242">4242 4242 4242 4242 (succeeds)</option>
+            <option value="4000000000000002">4000 0000 0000 0002 (declined)</option>
+          </select>
+        </label>
+
+        <div id="items"></div>
+        <button type="button" id="add-item">+ add item</button>
+        <button type="submit" id="submit">Place order</button>
+      </form>
+
+      <pre id="result"></pre>
+    </section>
+
+    <section class="panel wide">
+      <h2>Recent orders</h2>
+      <div id="orders-list"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

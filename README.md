@@ -1,109 +1,31 @@
 # order-service
 
-A backend service for placing e-commerce orders: pick a warehouse that can fill the order, reserve the stock, and charge a payment API. All of that happens in one transaction, safely under concurrency.
+Place an order: pick one warehouse that can fill every line, charge a (mocked) card, reserve stock. If several warehouses can fill it, use the closest to the ship-to. Two concurrent orders cannot both take the last units; a declined payment rolls the whole attempt back. Prices are copied onto the order so later catalog changes don't rewrite history.
 
-## What it does
+TypeScript, Node, Fastify, Drizzle, Postgres, Docker Compose.
 
-A customer places an order with a shipping address and a list of products. The service finds a single warehouse that can fill every item in the order. If more than one can, it picks whichever is closest to the shipping address, using a mocked geocoding client. It then charges a mocked payment API for the order total.
+## Out of scope
 
-Stock is reserved inside a database transaction with row-level locking, so two orders placed at the same time can't both claim the last few units of the same product. If the payment fails, the whole attempt rolls back and nothing is persisted. There's no order in a "pending" or "failed" state, only orders that were successfully fulfilled and paid.
+No auth, and no APIs for customers, warehouses, or products; those are seeded. No queues. Parsing a free-text order into `{ productId, quantity }` lines is out of scope; this API takes structured items.
 
-Prices are copied onto the order at creation time, so a later change to a product's price doesn't rewrite the history of past orders.
-
-## What it deliberately doesn't do
-
-No authentication, and no APIs for managing customers, warehouses, or products. Those are seeded directly into the database. No background queues or extra services; the whole flow is one synchronous request. These are out of scope for the assignment, not oversights.
-
-Parsing a free-text order (an email, a handwritten list) into a structured `{ productId, quantity }` line item is also out of scope here. This API assumes that matching has already happened and takes structured input directly.
-
-## Stack
-
-TypeScript, Node, Fastify, Drizzle ORM, Postgres, Docker Compose.
-
-## Running it locally
+## Run
 
 ```sh
 cp .env.example .env
-docker compose up -d --wait
 npm install
+docker compose up -d --wait
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-The server listens on the port set in `.env` (default `3000`). `GET /health` confirms it's up.
+API at `http://localhost:3000` (`GET /health`). `npm test` needs that migrated, seeded database. `npm install` may print drizzle-kit/esbuild audit warnings; they're from a kit toolchain dep, not this app. Don't `npm audit fix --force` (it downgrades drizzle-kit).
 
-`npm install` prints moderate `npm audit` warnings from `drizzle-kit`'s toolchain (an old transitive `esbuild`, deprecated in favor of `tsx`). They're dev-only, not reachable at runtime, and there's no newer stable `drizzle-kit` release yet that drops them - `npm audit fix --force`'s suggested fix is actually a downgrade, not worth taking.
+Optional UI (stock grid + the same `POST /orders`), a sidecar, not part of the service: `npm run dev:all` after copy-env and `npm install`, then open `http://localhost:3001`. See `demo/README.md`.
 
-`POST /orders` creates an order. A few examples against the seeded data (customer `1`; product IDs and warehouse layout are in `src/db/seed.ts`):
+## POST /orders
 
-Happy path - tape is stocked everywhere, so it ships from the nearest warehouse:
-
-```sh
-curl -sS -X POST http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{
-    "customerId": 1,
-    "shippingAddress": {
-      "line1": "123 Main St",
-      "city": "Los Angeles",
-      "region": "CA",
-      "postalCode": "90012",
-      "country": "US"
-    },
-    "items": [{ "productId": 3, "quantity": 1 }],
-    "payment": { "cardNumber": "4242424242424242" }
-  }'
-```
-
-Closest eligible, not closest overall - conduit, elbow, and a breaker are only all in stock together in New York, so this ships from there even though the address is Los Angeles:
-
-```sh
-curl -sS -X POST http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{
-    "customerId": 1,
-    "shippingAddress": {
-      "line1": "123 Main St",
-      "city": "Los Angeles",
-      "region": "CA",
-      "postalCode": "90012",
-      "country": "US"
-    },
-    "items": [
-      { "productId": 1, "quantity": 1 },
-      { "productId": 2, "quantity": 1 },
-      { "productId": 4, "quantity": 1 }
-    ],
-    "payment": { "cardNumber": "4242424242424242" }
-  }'
-```
-
-No warehouse can fill it (409) - each warehouse is missing at least one of these four items:
-
-```sh
-curl -sS -X POST http://localhost:3000/orders \
-  -H 'content-type: application/json' \
-  -d '{
-    "customerId": 1,
-    "shippingAddress": {
-      "line1": "123 Main St",
-      "city": "Los Angeles",
-      "region": "CA",
-      "postalCode": "90012",
-      "country": "US"
-    },
-    "items": [
-      { "productId": 5, "quantity": 1 },
-      { "productId": 7, "quantity": 1 },
-      { "productId": 2, "quantity": 1 },
-      { "productId": 4, "quantity": 1 }
-    ],
-    "payment": { "cardNumber": "4242424242424242" }
-  }'
-```
-
-Declined payment (402) - same as the happy path, using card `4000000000000002`:
+After seed, customer `1` and electrical tape is product `3`. Layout and the other IDs are in `src/db/seed.ts`.
 
 ```sh
 curl -sS -X POST http://localhost:3000/orders \
@@ -118,9 +40,12 @@ curl -sS -X POST http://localhost:3000/orders \
       "country": "US"
     },
     "items": [{ "productId": 3, "quantity": 1 }],
-    "payment": { "cardNumber": "4000000000000002" }
+    "payment": { "cardNumber": "4242424242424242" }
   }'
 ```
 
-`npm test` needs a migrated, seeded database for eligibility and create-order tests.
+Same address, other baskets:
 
+- products `1, 2, 4` (conduit + elbow + breaker) → filled from New York, even though LA is closer; only NY has all three
+- products `5, 7, 2, 4` → 409, no single warehouse can fill it
+- tape (`3`) with card `4000000000000002` → 402, stock unchanged
